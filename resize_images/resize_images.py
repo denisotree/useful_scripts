@@ -38,34 +38,43 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('-s', '--source', type=str, help='Images source folder')
 parser.add_argument('-t', '--target', type=str, help='Images target folder')
-parser.add_argument('--size', type=int, help='Images max size both dimentions')
+parser.add_argument('--size', type=int, help='Images max size both dimensions')
 
 
-def resize_image(image_path):
-    if isinstance(max_imagesize, int) and max_imagesize > 0:
-        image = Image.open(image_path)
-        image.thumbnail((max_imagesize, max_imagesize))
-        image.save(os.path.join(target_dir, os.path.basename(image_path)))
-    else:
-        logging.error('Incorrect imagesize')
+class ImageResize:
 
+    def __init__(
+            self,
+            source_path: str,
+            max_image_size: int,
+            target_path: str
+    ):
+        self._source_path = source_path
+        self._target_path = target_path
+        self._max_image_size = max_image_size
 
-def resize_images(source_path, target_path, max_size):
-    if not target_path:
-        target_path = 'output_images'
-        if not os.path.exists(target_path):
-            os.mkdir(target_path)
-    elif not os.path.exists(target_path):
-        os.mkdir(target_path)
+    def _resize_image(self, image_path):
+        if isinstance(self._max_image_size, int) and self._max_image_size > 0:
+            image = Image.open(image_path)
+            image.thumbnail((self._max_image_size, self._max_image_size))
+            image.save(os.path.join(self._target_path, os.path.basename(image_path)), quality=50, optimize=True)
+        else:
+            logging.error('Incorrect imagesize')
 
-    if source_dir and os.path.isdir(source_path):
-        for dirpath, dirnames, filenames in os.walk(source_path):
-            files = [os.path.join(dirpath, f) for f in filenames if
-                     f.endswith((".jpg", ".png")) and not re.search(r'\d+x\d+.', f)]
-            with multiprocessing.Pool(8) as pool:
-                r = list(tqdm.tqdm(pool.imap(resize_image, files), total=len(files)))
-    else:
-        logging.error('Set source folder')
+    def resize_images(self):
+        if not self._target_path:
+            self._target_path = 'output_images'
+        if not os.path.exists(self._target_path):
+            os.mkdir(self._target_path)
+
+        if self._source_path and os.path.exists(self._source_path):
+            for dirpath, dirnames, filenames in os.walk(self._source_path):
+                files = [os.path.join(dirpath, f) for f in filenames if
+                         f.endswith((".jpg", ".png")) and not re.search(r'\d+x\d+.', f)]
+                with multiprocessing.Pool(8) as pool:
+                    list(tqdm.tqdm(pool.imap(self._resize_image, files), total=len(files)))
+        else:
+            logging.error('Set source folder')
 
 
 if __name__ == '__main__':
@@ -74,6 +83,12 @@ if __name__ == '__main__':
 
     source_dir = args.source
     target_dir = args.target
-    max_imagesize = args.size
+    max_size = args.size
 
-    resize_images(source_dir, target_dir, max_imagesize)
+    resizer = ImageResize(
+        source_path=source_dir,
+        max_image_size=max_size,
+        target_path=target_dir
+    )
+
+    resizer.resize_images()
